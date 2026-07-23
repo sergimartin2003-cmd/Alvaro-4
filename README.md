@@ -1,89 +1,114 @@
-# Hipopick — Catálogo de productos con panel de administración
+# Hipopick — Catálogo de productos con Supabase
 
-Una web **vacía** tipo catálogo (estilo *hipopick.com*) donde **solo tú**, desde un
-panel privado con contraseña, subes tus productos con fotos, detalles y los
-**clasificas por categorías**. Todo funciona sin servidor ni base de datos:
-son archivos estáticos (HTML/CSS/JS) listos para subir a cualquier hosting.
+Web tipo catálogo (estilo *hipopick.com*) con un **panel privado** donde solo tú,
+tras iniciar sesión, subes productos con **fotos, precios, detalles y categorías**.
+Todo se guarda en una **base de datos Supabase** (y las fotos en **Supabase Storage**),
+así que se ve **igual desde cualquier dispositivo** y para cualquier visitante.
 
-## 📁 Archivos
+Es un sitio **estático** (HTML/CSS/JS, sin build ni Node en el servidor): se
+despliega en cualquier hosting y habla con Supabase desde el navegador.
 
-| Archivo | Qué es |
-|---|---|
-| `index.html` | La **tienda** pública: rejilla de productos, buscador, filtros por categoría, ficha de producto y favoritos. |
-| `admin.html` | El **panel privado** (con contraseña) para añadir/editar/eliminar productos. |
-| `js/seed.js` | **Configuración** (nombre de marca, colores, moneda y **contraseña**) + categorías sugeridas. |
-| `js/store.js` | Lógica de datos (guardado en el navegador). |
-| `js/app.js` | Lógica de la tienda. |
-| `js/admin.js` | Lógica del panel. |
-| `css/styles.css` | Estilos. |
+> **Modo demo:** mientras no configures Supabase, la web funciona guardando en el
+> navegador (localStorage) para que puedas probarla. Verás un aviso amarillo.
+> Al poner tus credenciales de Supabase, pasa a guardar todo en la base de datos.
 
-## 🚀 Cómo probarla
+---
 
-Ábrela con un servidor local (recomendado) o directamente el archivo:
+## 🚀 Puesta en marcha con Supabase (una sola vez)
 
-```bash
-# Opción A: servidor local (recomendado)
-cd Alvaro-4
-python3 -m http.server 8080
-# luego abre http://localhost:8080
+### 1) Crea un proyecto en Supabase
+- Entra en <https://supabase.com>, crea una cuenta y un **New project** (plan gratis vale).
+- Apunta la contraseña de la base de datos que te pida (no la necesitarás para la web).
 
-# Opción B: doble clic en index.html (también funciona)
-```
+### 2) Crea la tabla, el bucket de fotos y las reglas de seguridad
+- En Supabase: **SQL Editor → New query**.
+- Copia y pega **todo** el contenido de [`supabase/schema.sql`](supabase/schema.sql) y pulsa **Run**.
+- Esto crea la tabla `products`, el bucket `product-images` y las políticas RLS
+  (lectura pública, escritura solo para ti tras iniciar sesión).
 
-1. Abre `index.html` → verás la tienda **vacía**.
-2. Pulsa **“+ Añadir productos”** (o abre `admin.html`).
-3. Introduce la contraseña. Por defecto es **`admin1234`**.
-4. Rellena el formulario (nombre, precio, **categoría**, fotos…) y **Guardar**.
-5. Vuelve a la tienda: tu producto ya aparece, con su categoría como filtro.
+### 3) Crea tu usuario administrador
+- **Authentication → Users → Add user** → pon tu **email** y **contraseña**.
+  Ese será el único que pueda entrar al panel a subir productos.
+- Recomendado: **Authentication → Providers → Email** y desactiva *Enable Sign Ups*
+  para que nadie más pueda registrarse.
 
-## 🔒 Cambiar la contraseña del panel
-
-Edita `js/seed.js` y cambia:
+### 4) Conecta la web con tu proyecto
+- En Supabase: **Project Settings → API** y copia:
+  - **Project URL**
+  - **anon public** key
+- Pégalas en [`js/config.js`](js/config.js):
 
 ```js
-adminPasscode: "admin1234"   // ← pon aquí TU contraseña
+window.APP_CONFIG = {
+  SUPABASE_URL: "https://xxxxxxxx.supabase.co",   // tu Project URL
+  SUPABASE_ANON_KEY: "eyJhbGciOi...",             // tu anon public key
+  STORAGE_BUCKET: "product-images"
+};
 ```
 
-- Si la dejas vacía (`""`), el panel no pedirá contraseña.
-- Es una protección sencilla del lado del navegador (suficiente para uso normal),
-  no un sistema de login con servidor.
+> La clave **anon public** es segura para el navegador: la seguridad real la dan
+> las políticas RLS que ya creaste. (Nunca pongas la `service_role` key aquí.)
 
-## 🎨 Personalizar la marca
+¡Listo! Abre `admin.html`, inicia sesión con tu email y contraseña, y sube productos.
 
-En `js/seed.js`:
+---
 
-```js
-brand: "Hipopick",     // nombre que aparece arriba
-tagline: "…",          // frase del banner
-currency: "€",         // moneda por defecto
-accent: "#6C5CE7",     // color principal
-```
+## 🖥️ Cómo se usa
+
+- **`index.html`** — la tienda: rejilla de productos, buscador, filtros por
+  categoría, ficha de producto con galería de fotos y favoritos.
+- **`admin.html`** — el panel privado (login). Desde ahí:
+  - Añades productos: nombre, precio, moneda, **categoría**, etiqueta, valoración,
+    descripción y enlace de compra.
+  - **Subes fotos** (varias, arrastrando o eligiendo) → se guardan en Supabase Storage.
+    También puedes pegar la URL de una imagen.
+  - Editas / eliminas productos.
+  - Filtras por categoría y exportas una copia de seguridad en JSON.
 
 ## 🗂️ Clasificar productos
 
-En el formulario del panel, el campo **Categoría** clasifica cada producto.
-Puedes elegir una de las sugeridas o **escribir una nueva**. En la tienda,
-las categorías aparecen automáticamente como filtros (chips) arriba.
+El campo **Categoría** del formulario clasifica cada producto. Puedes elegir una
+sugerida o **escribir una nueva**. En la tienda, las categorías aparecen
+automáticamente como filtros arriba. Las sugeridas se editan en `js/config.js`
+(`SUGGESTED_CATEGORIES`).
 
-Las categorías sugeridas se editan en `js/seed.js` (`SUGGESTED_CATEGORIES`).
+## 🎨 Personalizar la marca
 
-## 💾 Dónde se guardan los productos (importante)
+En `js/config.js` → `window.SITE_CONFIG`:
 
-Los productos se guardan en el **navegador** (localStorage) del dispositivo donde
-los añades. Esto significa:
-
-- Se conservan aunque cierres la pestaña, en ese mismo navegador.
-- **No** se comparten solos entre dispositivos ni con otros visitantes.
-
-Para hacerlos permanentes / moverlos a otro sitio:
-
-- En el panel, pulsa **⬇ Exportar** para descargar `productos.json` (copia de seguridad).
-- Usa **⬆ Importar** para cargarlos en otro navegador/dispositivo.
-
-> ¿Quieres que **todos los visitantes** vean los mismos productos sin importar el
-> dispositivo? Eso necesita un **backend con base de datos**. Dímelo y te lo monto.
+```js
+brand: "Hipopick",   // nombre que aparece arriba
+tagline: "…",        // frase del banner
+currency: "€",       // moneda por defecto
+accent: "#6C5CE7",   // color principal
+```
 
 ## ☁️ Subir a un hosting
 
-Al ser archivos estáticos, sube toda la carpeta a cualquier hosting:
-Hostinger, Netlify, Vercel, GitHub Pages, etc. No necesita build ni Node.
+Al ser archivos estáticos, sube toda la carpeta a **Hostinger, Netlify, Vercel,
+GitHub Pages**, etc. No hay build. Solo asegúrate de haber rellenado `js/config.js`.
+
+## 📁 Estructura
+
+```
+index.html            La tienda (pública)
+admin.html            El panel privado (login Supabase)
+css/styles.css        Estilos
+js/config.js          Tus credenciales de Supabase + ajustes de marca
+js/store.js           Capa de datos (Supabase, con fallback a modo demo)
+js/app.js             Lógica de la tienda
+js/admin.js           Lógica del panel
+js/vendor/supabase.js Librería oficial de Supabase (guardada en local)
+supabase/schema.sql   Script para crear la base de datos y el Storage
+```
+
+## ❓ Preguntas frecuentes
+
+- **¿Los productos se ven en todos los dispositivos?** Sí, una vez configurado
+  Supabase: se guardan en la base de datos, no en el navegador.
+- **¿Puede subir productos cualquiera?** No. Solo quien inicie sesión con el
+  usuario que creaste. Los visitantes solo pueden ver.
+- **¿Y las fotos?** Se guardan en Supabase Storage (bucket público de solo lectura;
+  subir/borrar requiere estar autenticado).
+- **¿Sale un aviso amarillo de "modo demo"?** Significa que aún no has puesto tus
+  credenciales en `js/config.js`. Revisa el paso 4.

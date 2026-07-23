@@ -1,87 +1,94 @@
 /* ============================================================
-   ADMIN: panel privado para gestionar productos
+   ADMIN: panel privado (login Supabase Auth + CRUD en la base de datos)
    ============================================================ */
 (function () {
   applyTheme();
   const cfg = Store.getConfig();
   const $ = (id) => document.getElementById(id);
 
-  /* -------------------- Contraseña -------------------- */
-  const SESSION_KEY = "hp_admin_ok";
-  function needsGate() {
-    return !!(cfg.adminPasscode && cfg.adminPasscode.length);
-  }
-  function unlocked() {
-    return sessionStorage.getItem(SESSION_KEY) === "1";
-  }
-  function showPanel() {
-    $("gate").style.display = "none";
-    $("panel").style.display = "block";
-    initPanel();
+  let products = [];        // cache
+  let pendingImages = [];   // URLs (Supabase) o data URLs (demo) del formulario
+  let panelReady = false;
+
+  // Aviso de modo demo
+  if (!Store.isSupabase && $("demoBanner")) $("demoBanner").style.display = "block";
+  // En modo demo ocultamos el campo email (solo importa la contraseña)
+  if (!Store.isSupabase && $("gateEmailField")) $("gateEmailField").style.display = "none";
+
+  /* -------------------- Login -------------------- */
+  async function boot() {
+    let user = null;
+    try { user = await Store.auth.getUser(); } catch (e) { user = null; }
+    if (user) showPanel();
+    else showGate();
   }
   function showGate() {
     $("gate").style.display = "block";
     $("panel").style.display = "none";
-    $("gatePass").focus();
+    ($("gateEmail") || $("gatePass")).focus();
   }
-  function tryUnlock() {
-    const val = $("gatePass").value;
-    if (val === cfg.adminPasscode) {
-      sessionStorage.setItem(SESSION_KEY, "1");
-      showPanel();
-    } else {
+  async function showPanel() {
+    $("gate").style.display = "none";
+    $("panel").style.display = "block";
+    if (!panelReady) { bindForm(); bindTools(); panelReady = true; }
+    await refresh();
+  }
+  async function tryLogin() {
+    const email = $("gateEmail") ? $("gateEmail").value.trim() : "";
+    const pass = $("gatePass").value;
+    $("gateErr").style.display = "none";
+    $("gateBtn").disabled = true;
+    $("gateBtn").textContent = "Entrando…";
+    try {
+      await Store.auth.signIn(email, pass);
+      await showPanel();
+    } catch (e) {
+      $("gateErr").textContent = Store.isSupabase
+        ? "Email o contraseña incorrectos."
+        : "Contraseña incorrecta.";
       $("gateErr").style.display = "block";
       $("gatePass").select();
+    } finally {
+      $("gateBtn").disabled = false;
+      $("gateBtn").textContent = "Entrar";
     }
   }
-  $("gateBtn").onclick = tryUnlock;
-  $("gatePass").addEventListener("keydown", (e) => { if (e.key === "Enter") tryUnlock(); });
-  $("lockBtn").onclick = () => { sessionStorage.removeItem(SESSION_KEY); location.reload(); };
+  $("gateBtn").onclick = tryLogin;
+  $("gatePass").addEventListener("keydown", (e) => { if (e.key === "Enter") tryLogin(); });
+  if ($("gateEmail")) $("gateEmail").addEventListener("keydown", (e) => { if (e.key === "Enter") $("gatePass").focus(); });
+  $("lockBtn").onclick = async () => { await Store.auth.signOut(); location.reload(); };
 
-  if (!needsGate() || unlocked()) showPanel();
-  else showGate();
-
-  /* -------------------- Panel -------------------- */
-  let pendingImages = []; // imágenes del formulario actual (data URIs o URLs)
-
-  function initPanel() {
+  /* -------------------- Datos -------------------- */
+  async function refresh() {
+    try {
+      products = await Store.listProducts();
+    } catch (e) {
+      console.error(e);
+      toast("Error al cargar productos");
+      products = [];
+    }
     refreshCategoryInputs();
     renderList();
-    bindForm();
-    bindTools();
   }
 
-  /* ---- Categorías (datalist + filtro) ---- */
   function allCategories() {
     const set = new Set(window.SUGGESTED_CATEGORIES || []);
-    Store.getProducts().forEach((p) => p.category && set.add(p.category));
+    products.forEach((p) => p.category && set.add(p.category));
     return [...set].sort();
   }
   function refreshCategoryInputs() {
     const cats = allCategories();
-    const dl = $("catList");
-    dl.innerHTML = cats.map((c) => '<option value="' + escAttr(c) + '">').join("");
-
-    const filter = $("filterCat");
-    const current = filter.value;
-    filter.setAttribute("list", "filterCatList");
+    $("catList").innerHTML = cats.map((c) => '<option value="' + esc(c) + '">').join("");
     let dl2 = $("filterCatList");
-    if (!dl2) {
-      dl2 = document.createElement("datalist");
-      dl2.id = "filterCatList";
-      document.body.appendChild(dl2);
-    }
-    dl2.innerHTML =
-      '<option value="">' +
-      cats.map((c) => '<option value="' + escAttr(c) + '">').join("");
-    filter.placeholder = "Filtrar por categoría…";
-    filter.value = current;
+    if (!dl2) { dl2 = document.createElement("datalist"); dl2.id = "filterCatList"; document.body.appendChild(dl2); }
+    dl2.innerHTML = cats.map((c) => '<option value="' + esc(c) + '">').join("");
+    $("filterCat").setAttribute("list", "filterCatList");
+    $("filterCat").placeholder = "Filtrar por categoría…";
   }
 
-  /* ---- Formulario ---- */
+  /* -------------------- Formulario -------------------- */
   function bindForm() {
-    const form = $("productForm");
-    form.onsubmit = (e) => {
+    $("productForm").onsubmit = async (e) => {
       e.preventDefault();
       const data = {
         name: $("fName").value.trim(),
@@ -97,16 +104,18 @@
       if (!data.name) return;
 
       const editId = $("editId").value;
-      if (editId) {
-        Store.updateProduct(editId, data);
-        toast("Producto actualizado ✓");
-      } else {
-        Store.addProduct(data);
-        toast("Producto añadido ✓");
+      setSaving(true);
+      try {
+        if (editId) { await Store.updateProduct(editId, data); toast("Producto actualizado ✓"); }
+        else { await Store.addProduct(data); toast("Producto añadido ✓"); }
+        resetForm();
+        await refresh();
+      } catch (err) {
+        console.error(err);
+        alert("No se pudo guardar: " + (err.message || err));
+      } finally {
+        setSaving(false);
       }
-      resetForm();
-      refreshCategoryInputs();
-      renderList();
     };
 
     $("cancelBtn").onclick = resetForm;
@@ -115,13 +124,11 @@
     const drop = $("dropzone");
     const fileInput = $("fileInput");
     drop.onclick = () => fileInput.click();
-    fileInput.onchange = () => handleFiles(fileInput.files);
+    fileInput.onchange = () => { handleFiles(fileInput.files); fileInput.value = ""; };
     ["dragenter", "dragover"].forEach((ev) =>
-      drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("drag"); })
-    );
+      drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("drag"); }));
     ["dragleave", "drop"].forEach((ev) =>
-      drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("drag"); })
-    );
+      drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("drag"); }));
     drop.addEventListener("drop", (e) => handleFiles(e.dataTransfer.files));
 
     // URL de imagen
@@ -134,43 +141,24 @@
     });
   }
 
-  function handleFiles(files) {
+  async function handleFiles(files) {
     const arr = [...files].filter((f) => f.type.startsWith("image/"));
-    let done = 0;
     if (!arr.length) return;
-    arr.forEach((file) => {
-      resizeImage(file, 1000, 0.82).then((dataUrl) => {
-        pendingImages.push(dataUrl);
-        done++;
+    setUploading(true, arr.length);
+    let ok = 0;
+    for (const file of arr) {
+      try {
+        const ref = await Store.uploadImage(file);
+        pendingImages.push(ref);
+        ok++;
         renderThumbs();
-        if (done === arr.length) toast(arr.length + " imagen(es) añadida(s)");
-      });
-    });
-  }
-
-  // Redimensiona/comprime la imagen en el navegador (para no llenar el almacenamiento)
-  function resizeImage(file, maxSize, quality) {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          let { width, height } = img;
-          if (width > maxSize || height > maxSize) {
-            if (width >= height) { height = Math.round((height * maxSize) / width); width = maxSize; }
-            else { width = Math.round((width * maxSize) / height); height = maxSize; }
-          }
-          const canvas = document.createElement("canvas");
-          canvas.width = width;
-          canvas.height = height;
-          canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL("image/jpeg", quality));
-        };
-        img.onerror = () => resolve(e.target.result);
-        img.src = e.target.result;
-      };
-      reader.readAsDataURL(file);
-    });
+      } catch (err) {
+        console.error(err);
+        toast("Error subiendo una imagen");
+      }
+    }
+    setUploading(false);
+    if (ok) toast(ok + " imagen(es) subida(s) ✓");
   }
 
   function renderThumbs() {
@@ -179,10 +167,20 @@
     pendingImages.forEach((src, i) => {
       const d = document.createElement("div");
       d.className = "thumb-item";
-      d.innerHTML = '<img src="' + escAttr(src) + '"><button type="button" title="Quitar">×</button>';
+      d.innerHTML = '<img src="' + esc(src) + '"><button type="button" title="Quitar">×</button>';
       d.querySelector("button").onclick = () => { pendingImages.splice(i, 1); renderThumbs(); };
       wrap.appendChild(d);
     });
+  }
+
+  function setUploading(on, n) {
+    const dz = $("dropzone");
+    if (on) { dz.classList.add("uploading"); dz.dataset.label = dz.innerHTML; dz.innerHTML = "⏳ Subiendo " + (n || "") + " imagen(es)…"; }
+    else if (dz.dataset.label) { dz.classList.remove("uploading"); dz.innerHTML = dz.dataset.label; }
+  }
+  function setSaving(on) {
+    $("saveBtn").disabled = on;
+    $("saveBtn").textContent = on ? "Guardando…" : ($("editId").value ? "Guardar cambios" : "Guardar producto");
   }
 
   function resetForm() {
@@ -197,7 +195,7 @@
   }
 
   function editProduct(id) {
-    const p = Store.getProduct(id);
+    const p = products.find((x) => x.id === id);
     if (!p) return;
     $("editId").value = p.id;
     $("fName").value = p.name;
@@ -216,63 +214,49 @@
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  /* ---- Lista de productos ---- */
+  /* -------------------- Lista -------------------- */
   function renderList() {
     const filter = ($("filterCat").value || "").trim().toLowerCase();
-    let list = Store.getProducts();
+    let list = products.slice();
     if (filter) list = list.filter((p) => (p.category || "").toLowerCase().includes(filter));
-    list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
     const wrap = $("adminList");
-    const total = Store.getProducts().length;
-    $("countLabel").textContent = "(" + total + ")";
+    $("countLabel").textContent = "(" + products.length + ")";
     wrap.innerHTML = "";
-
-    if (!total) { $("adminEmpty").style.display = "block"; return; }
+    if (!products.length) { $("adminEmpty").style.display = "block"; return; }
     $("adminEmpty").style.display = "none";
-
-    if (!list.length) {
-      wrap.innerHTML = '<p style="color:#7a7f95;padding:16px">Ningún producto en esa categoría.</p>';
-      return;
-    }
+    if (!list.length) { wrap.innerHTML = '<p style="color:#7a7f95;padding:16px">Ningún producto en esa categoría.</p>'; return; }
 
     list.forEach((p) => {
       const item = document.createElement("div");
       item.className = "admin-item";
       item.innerHTML =
-        '<img src="' + escAttr(Store.productImage(p)) + '" alt="">' +
-        '<div class="meta">' +
-          '<div class="n">' + esc(p.name) + "</div>" +
-          '<div class="s">' + esc(p.category) + " · " + (Store.formatPrice(p) || "sin precio") +
-            (p.images && p.images.length ? " · " + p.images.length + " foto(s)" : "") +
-          "</div>" +
-        "</div>" +
+        '<img src="' + esc(Store.productImage(p)) + '" alt="">' +
+        '<div class="meta"><div class="n">' + esc(p.name) + "</div>" +
+        '<div class="s">' + esc(p.category) + " · " + (Store.formatPrice(p) || "sin precio") +
+          (p.images && p.images.length ? " · " + p.images.length + " foto(s)" : "") + "</div></div>" +
         '<div class="acts">' +
           '<button class="mini-btn edit" title="Editar">✏️</button>' +
-          '<button class="mini-btn del" title="Eliminar">🗑</button>' +
-        "</div>";
+          '<button class="mini-btn del" title="Eliminar">🗑</button></div>';
       item.querySelector(".edit").onclick = () => editProduct(p.id);
-      item.querySelector(".del").onclick = () => {
-        if (confirm('¿Eliminar "' + p.name + '"?')) {
-          Store.deleteProduct(p.id);
-          refreshCategoryInputs();
-          renderList();
-          toast("Producto eliminado");
-        }
+      item.querySelector(".del").onclick = async () => {
+        if (!confirm('¿Eliminar "' + p.name + '"?')) return;
+        try { await Store.deleteProduct(p.id); toast("Producto eliminado"); await refresh(); }
+        catch (err) { alert("No se pudo eliminar: " + (err.message || err)); }
       };
       wrap.appendChild(item);
     });
   }
 
-  /* ---- Herramientas: filtro, exportar, importar ---- */
+  /* -------------------- Herramientas -------------------- */
   function bindTools() {
     $("filterCat").addEventListener("input", renderList);
 
     $("exportBtn").onclick = () => {
-      const blob = new Blob([Store.exportJSON()], { type: "application/json" });
+      const blob = new Blob([JSON.stringify(products, null, 2)], { type: "application/json" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = "productos.json";
+      a.download = "productos-backup.json";
       a.click();
       URL.revokeObjectURL(a.href);
       toast("Copia de seguridad descargada");
@@ -283,32 +267,33 @@
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          const n = Store.importJSON(reader.result);
-          refreshCategoryInputs();
-          renderList();
-          toast("Importados " + n + " productos ✓");
-        } catch (err) {
-          alert("No se pudo importar: " + err.message);
-        }
+      reader.onload = async () => {
+        let arr;
+        try { arr = JSON.parse(reader.result); if (!Array.isArray(arr)) throw new Error("Formato inválido"); }
+        catch (err) { alert("Archivo no válido: " + err.message); return; }
+        if (!confirm("Se importarán " + arr.length + " productos a la base de datos. ¿Continuar?")) return;
+        let n = 0;
+        for (const p of arr) { try { await Store.addProduct(p); n++; } catch (e) {} }
+        toast("Importados " + n + " productos ✓");
+        await refresh();
         $("importFile").value = "";
       };
       reader.readAsText(file);
     };
   }
 
-  /* ---- Helpers ---- */
+  /* -------------------- Helpers -------------------- */
   function esc(s) {
     return (s || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
-  function escAttr(s) { return esc(s); }
   let toastTimer;
   function toast(msg) {
     const t = $("toast");
     t.textContent = msg;
     t.classList.add("show");
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.remove("show"), 1800);
+    toastTimer = setTimeout(() => t.classList.remove("show"), 2000);
   }
+
+  boot();
 })();

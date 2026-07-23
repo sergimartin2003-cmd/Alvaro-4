@@ -38,6 +38,12 @@
   </div>
 
   <main class="container">
+    <!-- AVISO MODO DEMO -->
+    <div class="demo-banner" id="demoBanner" style="display:none">
+      ⚠️ <b>Modo demo</b>: los productos se guardan solo en este navegador.
+      Configura Supabase (ver <code>README.md</code>) para guardarlos en la base de datos.
+    </div>
+
     <!-- HERO -->
     <section class="hero" id="hero">
       <span class="hero-badge">Nuevas entradas 🔥</span>
@@ -98,7 +104,8 @@
 
   <div class="toast" id="toast"></div>
 
-  <script src="js/seed.js"></script>
+  <script src="js/vendor/supabase.js"></script>
+  <script src="js/config.js"></script>
   <script src="js/store.js"></script>
   <script src="js/app.js"></script>
 </body>

@@ -10,23 +10,30 @@
 </head>
 <body class="admin-body">
 
-  <!-- PANTALLA DE CONTRASEÑA -->
+  <!-- PANTALLA DE LOGIN -->
   <div class="gate" id="gate" style="display:none">
     <div class="panel">
       <div style="font-size:44px">🔒</div>
       <h1 style="font-size:20px;margin:10px 0 4px">Panel privado</h1>
-      <p style="color:#7a7f95;margin:0 0 18px">Introduce la contraseña para gestionar tus productos.</p>
+      <p style="color:#7a7f95;margin:0 0 18px">Inicia sesión para gestionar tus productos.</p>
+      <div class="field" id="gateEmailField">
+        <input type="email" id="gateEmail" placeholder="Email" autocomplete="username" />
+      </div>
       <div class="field">
-        <input type="password" id="gatePass" placeholder="Contraseña" />
+        <input type="password" id="gatePass" placeholder="Contraseña" autocomplete="current-password" />
       </div>
       <button class="btn-sm primary" id="gateBtn" style="width:100%">Entrar</button>
-      <p id="gateErr" style="color:#e84393;font-size:13px;margin:12px 0 0;display:none">Contraseña incorrecta.</p>
+      <p id="gateErr" style="color:#e84393;font-size:13px;margin:12px 0 0;display:none">Datos incorrectos.</p>
       <p style="margin-top:18px"><a href="index.html" style="color:#6c5ce7;font-weight:600">← Volver a la tienda</a></p>
     </div>
   </div>
 
   <!-- PANEL -->
   <div class="admin-wrap" id="panel" style="display:none">
+    <div class="demo-banner" id="demoBanner" style="display:none;margin-bottom:16px">
+      ⚠️ <b>Modo demo</b>: sin Supabase configurado. Los productos y fotos se guardan solo en este
+      navegador. Configura Supabase (ver <code>README.md</code>) para guardarlos en la base de datos.
+    </div>
     <div class="admin-top">
       <h1><span style="font-size:24px">⚙️</span> Panel de administración</h1>
       <div class="tools">
@@ -131,7 +138,8 @@
 
   <div class="toast" id="toast"></div>
 
-  <script src="js/seed.js"></script>
+  <script src="js/vendor/supabase.js"></script>
+  <script src="js/config.js"></script>
   <script src="js/store.js"></script>
   <script src="js/admin.js"></script>
 </body>

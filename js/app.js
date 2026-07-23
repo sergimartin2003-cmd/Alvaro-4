@@ -1,39 +1,66 @@
 /* ============================================================
-   APP: lógica de la tienda / catálogo
+   APP: lógica de la tienda / catálogo (lee de Supabase)
    ============================================================ */
 (function () {
   applyTheme();
   const cfg = Store.getConfig();
-
-  // --- Estado de la vista ---
-  const state = {
-    search: "",
-    category: "Todos",
-    sort: "new",
-    favsOnly: false
-  };
-
-  // --- Referencias DOM ---
   const $ = (id) => document.getElementById(id);
+
+  const state = { search: "", category: "Todos", sort: "new", favsOnly: false };
+  let products = []; // cache de productos cargados
+
   const grid = $("grid");
   const empty = $("empty");
   const chips = $("chips");
 
-  // --- Config visual ---
+  // --- Marca / textos ---
   $("brandName").innerHTML = brandHTML(cfg.brand);
   $("footBrand").textContent = cfg.brand;
   $("heroTitle").textContent = cfg.tagline || "Encuentra tus productos";
   $("year").textContent = new Date().getFullYear();
   document.title = cfg.brand + " — Catálogo de productos";
 
+  // Aviso de modo demo (sin Supabase configurado)
+  if (!Store.isSupabase && $("demoBanner")) $("demoBanner").style.display = "block";
+
   function brandHTML(name) {
-    // Resalta la última mitad del nombre con el color de acento (estilo Hipo|pick)
     if (!name) return "Catálogo";
     const mid = Math.ceil(name.length / 2);
     return name.slice(0, mid) + "<b>" + name.slice(mid) + "</b>";
   }
 
-  // --- Render categorías ---
+  /* ---------- Carga de datos ---------- */
+  async function load() {
+    grid.innerHTML = skeletons(8);
+    empty.style.display = "none";
+    try {
+      products = await Store.listProducts();
+    } catch (e) {
+      console.error(e);
+      products = [];
+      grid.innerHTML = "";
+      empty.style.display = "block";
+      $("emptyMsg").textContent =
+        "No se pudieron cargar los productos. Revisa la conexión con la base de datos.";
+      return;
+    }
+    renderChips();
+    render();
+  }
+
+  function skeletons(n) {
+    let s = "";
+    for (let i = 0; i < n; i++) {
+      s +=
+        '<div class="card"><div class="card-media skeleton"></div>' +
+        '<div class="card-body"><div class="sk-line" style="width:40%"></div>' +
+        '<div class="sk-line" style="width:80%"></div>' +
+        '<div class="sk-line" style="width:30%"></div></div></div>';
+    }
+    return s;
+  }
+
+  /* ---------- Categorías ---------- */
   function renderChips() {
     const cats = ["Todos", ...uniqueCategories()];
     chips.innerHTML = "";
@@ -53,16 +80,16 @@
   }
   function uniqueCategories() {
     const set = new Set();
-    Store.getProducts().forEach((p) => p.category && set.add(p.category));
+    products.forEach((p) => p.category && set.add(p.category));
     return [...set].sort();
   }
 
-  // --- Filtrado + orden ---
+  /* ---------- Filtro + orden ---------- */
   function currentList() {
-    let list = Store.getProducts();
+    let list = products.slice();
     if (state.favsOnly) {
-      const favs = Store.getFavs();
-      list = list.filter((p) => favs.includes(p.id));
+      const f = Store.favs.get();
+      list = list.filter((p) => f.includes(p.id));
     } else if (state.category !== "Todos") {
       list = list.filter((p) => p.category === state.category);
     }
@@ -84,10 +111,9 @@
     return list;
   }
 
-  // --- Render grid ---
+  /* ---------- Render ---------- */
   function render() {
     const list = currentList();
-
     $("listTitle").childNodes[0].nodeValue = state.favsOnly
       ? "Tus favoritos "
       : state.category === "Todos"
@@ -107,46 +133,37 @@
       return;
     }
     empty.style.display = "none";
-
-    const favs = Store.getFavs();
-    list.forEach((p) => grid.appendChild(card(p, favs)));
+    const f = Store.favs.get();
+    list.forEach((p) => grid.appendChild(card(p, f)));
   }
 
-  function card(p, favs) {
+  function card(p, favList) {
     const el = document.createElement("article");
     el.className = "card";
-    const isFav = favs.includes(p.id);
-    const rating = p.rating
-      ? '<span class="card-rating">★ ' + p.rating + "</span>"
-      : "";
+    const isFav = favList.includes(p.id);
+    const rating = p.rating ? '<span class="card-rating">★ ' + p.rating + "</span>" : "";
     const badge = p.badge ? '<span class="card-badge">' + esc(p.badge) + "</span>" : "";
     el.innerHTML =
-      '<div class="card-media">' +
-        badge +
-        '<button class="fav-btn' + (isFav ? " active" : "") + '" aria-label="Favorito">' +
-          heartSVG() +
-        "</button>" +
-        '<img loading="lazy" src="' + Store.productImage(p) + '" alt="' + esc(p.name) + '">' +
+      '<div class="card-media">' + badge +
+        '<button class="fav-btn' + (isFav ? " active" : "") + '" aria-label="Favorito">' + heartSVG() + "</button>" +
+        '<img loading="lazy" src="' + esc(Store.productImage(p)) + '" alt="' + esc(p.name) + '">' +
       "</div>" +
       '<div class="card-body">' +
         '<span class="card-cat">' + esc(p.category) + "</span>" +
         '<div class="card-name">' + esc(p.name) + "</div>" +
         '<div class="card-foot">' +
-          '<span class="card-price">' + (Store.formatPrice(p) || "—") + "</span>" +
-          rating +
+          '<span class="card-price">' + (Store.formatPrice(p) || "—") + "</span>" + rating +
         "</div>" +
       "</div>";
 
-    el.querySelector(".card-media img").onclick = () => openModal(p.id);
-    el.querySelector(".card-media").onclick = (e) => {
-      if (e.target.closest(".fav-btn")) return;
-      openModal(p.id);
-    };
-    el.querySelector(".card-name").style.cursor = "pointer";
-    el.querySelector(".card-name").onclick = () => openModal(p.id);
+    const media = el.querySelector(".card-media");
+    media.onclick = (e) => { if (!e.target.closest(".fav-btn")) openModal(p.id); };
+    const nameEl = el.querySelector(".card-name");
+    nameEl.style.cursor = "pointer";
+    nameEl.onclick = () => openModal(p.id);
     el.querySelector(".fav-btn").onclick = (e) => {
       e.stopPropagation();
-      const now = Store.toggleFav(p.id);
+      const now = Store.favs.toggle(p.id);
       e.currentTarget.classList.toggle("active", now);
       updateFavCount();
       toast(now ? "Añadido a favoritos ♥" : "Quitado de favoritos");
@@ -155,13 +172,11 @@
     return el;
   }
 
-  // --- Modal ---
-  let modalProduct = null;
+  /* ---------- Modal ---------- */
   function openModal(id) {
-    const p = Store.getProduct(id);
+    const p = products.find((x) => x.id === id);
     if (!p) return;
-    modalProduct = p;
-    const imgs = (p.images && p.images.length ? p.images : [Store.productImage(p)]);
+    const imgs = p.images && p.images.length ? p.images : [Store.productImage(p)];
     $("mCat").textContent = p.category;
     $("mName").textContent = p.name;
     $("mPrice").textContent = Store.formatPrice(p) || "Precio no indicado";
@@ -189,41 +204,26 @@
     else { buy.href = "#"; buy.style.display = "none"; }
 
     const favBtn = $("mFav");
-    const setFav = (v) => {
-      favBtn.classList.toggle("active", v);
-      favBtn.textContent = v ? "♥ Guardado" : "♡ Guardar";
-    };
-    setFav(Store.isFav(p.id));
-    favBtn.onclick = () => {
-      const now = Store.toggleFav(p.id);
-      setFav(now);
-      updateFavCount();
-      render();
-    };
+    const setFav = (v) => { favBtn.classList.toggle("active", v); favBtn.textContent = v ? "♥ Guardado" : "♡ Guardar"; };
+    setFav(Store.favs.is(p.id));
+    favBtn.onclick = () => { const now = Store.favs.toggle(p.id); setFav(now); updateFavCount(); render(); };
 
     $("modal").classList.add("open");
     document.body.style.overflow = "hidden";
   }
-  function closeModal() {
-    $("modal").classList.remove("open");
-    document.body.style.overflow = "";
-  }
+  function closeModal() { $("modal").classList.remove("open"); document.body.style.overflow = ""; }
   $("modalClose").onclick = closeModal;
   $("modal").onclick = (e) => { if (e.target.id === "modal") closeModal(); };
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
 
-  // --- Buscador ---
+  /* ---------- Controles ---------- */
   let searchTimer;
   $("searchInput").addEventListener("input", (e) => {
     clearTimeout(searchTimer);
     const v = e.target.value;
     searchTimer = setTimeout(() => { state.search = v.trim(); render(); }, 160);
   });
-
-  // --- Orden ---
   $("sortSelect").addEventListener("change", (e) => { state.sort = e.target.value; render(); });
-
-  // --- Favoritos ---
   $("favToggle").addEventListener("click", () => {
     state.favsOnly = !state.favsOnly;
     $("favToggle").classList.toggle("active", state.favsOnly);
@@ -232,13 +232,13 @@
     render();
   });
   function updateFavCount() {
-    const n = Store.getFavs().length;
+    const n = Store.favs.get().length;
     const badge = $("favCount");
     badge.textContent = n;
     badge.style.display = n ? "grid" : "none";
   }
 
-  // --- Helpers ---
+  /* ---------- Helpers ---------- */
   function esc(s) {
     return (s || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
@@ -254,8 +254,7 @@
     toastTimer = setTimeout(() => t.classList.remove("show"), 1800);
   }
 
-  // --- Init ---
-  renderChips();
-  render();
+  /* ---------- Init ---------- */
   updateFavCount();
+  load();
 })();
