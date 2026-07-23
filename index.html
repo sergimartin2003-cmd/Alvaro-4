@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hipopick — Catálogo de productos</title>
+  <meta name="description" content="Descubre productos con fotos reales. Busca, filtra y guarda tus favoritos." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='24' fill='%236c5ce7'/%3E%3Ctext x='50' y='68' font-size='60' text-anchor='middle' fill='white' font-family='Arial'%3EH%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- HEADER -->
+  <header class="site-header">
+    <div class="container header-row">
+      <a class="brand" href="index.html">
+        <span class="logo">🦛</span>
+        <span class="brand-name" id="brandName">Hipo<b>pick</b></span>
+      </a>
+      <label class="search">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="searchInput" type="text" placeholder="Buscar productos…" autocomplete="off" />
+      </label>
+      <div class="header-actions">
+        <button class="icon-btn" id="favToggle" title="Favoritos">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 1 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
+          <span class="badge-count" id="favCount" style="display:none">0</span>
+        </button>
+        <a class="btn-admin" href="admin.html">+ Añadir productos</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- FILTROS -->
+  <div class="filters">
+    <div class="container">
+      <div class="chips" id="chips"></div>
+    </div>
+  </div>
+
+  <main class="container">
+    <!-- HERO -->
+    <section class="hero" id="hero">
+      <span class="hero-badge">Nuevas entradas 🔥</span>
+      <h1 id="heroTitle">Encuentra tus productos</h1>
+      <p id="heroTagline">Busca, filtra por categoría y guarda tus favoritos. Fotos reales de cada producto.</p>
+    </section>
+
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+      <h2 id="listTitle">Todos los productos <span class="count" id="listCount"></span></h2>
+      <select class="select" id="sortSelect">
+        <option value="new">Más recientes</option>
+        <option value="price-asc">Precio: menor a mayor</option>
+        <option value="price-desc">Precio: mayor a menor</option>
+        <option value="name">Nombre (A-Z)</option>
+      </select>
+    </div>
+
+    <!-- GRID -->
+    <div class="grid" id="grid"></div>
+    <div class="empty" id="empty" style="display:none">
+      <div class="big">🛒</div>
+      <p id="emptyMsg">No hay productos todavía.</p>
+      <p><a href="admin.html">Añade tu primer producto →</a></p>
+    </div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="site-footer">
+    <div class="container footer-row">
+      <span>© <span id="year"></span> <span id="footBrand">Hipopick</span> · Catálogo de productos</span>
+      <span><a href="admin.html">Panel de administración</a></span>
+    </div>
+  </footer>
+
+  <!-- MODAL FICHA PRODUCTO -->
+  <div class="modal-backdrop" id="modal">
+    <div class="modal">
+      <button class="modal-close" id="modalClose" aria-label="Cerrar">×</button>
+      <div class="modal-grid">
+        <div class="modal-gallery">
+          <div class="modal-main-img"><img id="mImg" alt="" /></div>
+          <div class="modal-thumbs" id="mThumbs"></div>
+        </div>
+        <div class="modal-info">
+          <span class="modal-cat" id="mCat"></span>
+          <h2 id="mName"></h2>
+          <div class="modal-price" id="mPrice"></div>
+          <p class="modal-desc" id="mDesc"></p>
+          <div class="modal-actions">
+            <a class="btn btn-primary" id="mBuy" target="_blank" rel="noopener">Comprar ahora</a>
+            <button class="btn btn-ghost" id="mFav">♡ Guardar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/seed.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
