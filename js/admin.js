@@ -95,7 +95,7 @@
         price: $("fPrice").value,
         currency: $("fCurrency").value.trim() || cfg.currency,
         category: $("fCategory").value.trim() || "Otros",
-        badge: $("fBadge").value.trim(),
+        sizes: $("fSizes").value.trim(),
         rating: $("fRating").value,
         description: $("fDesc").value.trim(),
         buyLink: $("fBuy").value.trim(),
@@ -202,7 +202,7 @@
     $("fPrice").value = p.price ?? "";
     $("fCurrency").value = p.currency || "";
     $("fCategory").value = p.category || "";
-    $("fBadge").value = p.badge || "";
+    $("fSizes").value = p.sizes || "";
     $("fRating").value = p.rating ?? "";
     $("fDesc").value = p.description || "";
     $("fBuy").value = p.buyLink || "";

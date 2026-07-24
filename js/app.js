@@ -142,9 +142,8 @@
     el.className = "card";
     const isFav = favList.includes(p.id);
     const rating = p.rating ? '<span class="card-rating">★ ' + p.rating + "</span>" : "";
-    const badge = p.badge ? '<span class="card-badge">' + esc(p.badge) + "</span>" : "";
     el.innerHTML =
-      '<div class="card-media">' + badge +
+      '<div class="card-media">' +
         '<button class="fav-btn' + (isFav ? " active" : "") + '" aria-label="Favorito">' + heartSVG() + "</button>" +
         '<img loading="lazy" src="' + esc(Store.productImage(p)) + '" alt="' + esc(p.name) + '">' +
       "</div>" +
@@ -182,6 +181,24 @@
     $("mPrice").textContent = Store.formatPrice(p) || "Precio no indicado";
     $("mDesc").textContent = p.description || "Sin descripción.";
     $("mImg").src = imgs[0];
+
+    // Tallas disponibles (pastillas)
+    const mSizes = $("mSizes");
+    const sizeList = (p.sizes || "")
+      .split(/[,/|]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (sizeList.length) {
+      mSizes.style.display = "block";
+      mSizes.innerHTML =
+        '<span class="modal-sizes-label">Tallas disponibles</span>' +
+        '<div class="size-chips">' +
+        sizeList.map((s) => '<span class="size-chip">' + esc(s) + "</span>").join("") +
+        "</div>";
+    } else {
+      mSizes.style.display = "none";
+      mSizes.innerHTML = "";
+    }
 
     const thumbs = $("mThumbs");
     thumbs.innerHTML = "";

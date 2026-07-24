@@ -12,7 +12,7 @@ create table if not exists public.products (
   price       numeric,
   currency    text default '€',
   category    text default 'Otros',
-  badge       text default '',
+  badge       text default '',           -- guarda las TALLAS (ej: "S, M, L")
   description text default '',
   buy_link    text default '',
   images      jsonb default '[]'::jsonb,   -- lista de URLs de fotos
