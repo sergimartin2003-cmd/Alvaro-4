@@ -43,7 +43,7 @@ window.SITE_CONFIG = {
    También puedes escribir una nueva al vuelo en el formulario. */
 window.SUGGESTED_CATEGORIES = [
   "Ropa",
-  "zapas",
+  "Zapas",
   "Accesorios",
   "Relojes",
   "Bolsos",
