@@ -129,16 +129,74 @@
       drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("drag"); }));
     ["dragleave", "drop"].forEach((ev) =>
       drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("drag"); }));
-    drop.addEventListener("drop", (e) => handleFiles(e.dataTransfer.files));
+    drop.addEventListener("drop", (e) => {
+      const dt = e.dataTransfer;
+      if (dt.files && dt.files.length) { handleFiles(dt.files); return; }
+      // Arrastrado desde otra pestaña (p. ej. Discord): llega como enlace
+      const url =
+        dt.getData("text/uri-list") ||
+        dt.getData("text/plain") ||
+        imgSrcFromHtml(dt.getData("text/html"));
+      if (url) addImageFromUrl(url.trim());
+    });
 
-    // URL de imagen
+    // Pegar imagen con Ctrl+V (ideal: en Discord clic derecho → "Copiar imagen")
+    document.addEventListener("paste", (e) => {
+      if ($("panel").style.display === "none") return; // solo con el panel abierto
+      const items = (e.clipboardData && e.clipboardData.items) || [];
+      const imgs = [];
+      for (const it of items) {
+        if (it.kind === "file" && it.type.startsWith("image/")) {
+          const f = it.getAsFile();
+          if (f) imgs.push(f);
+        }
+      }
+      if (imgs.length) { e.preventDefault(); handleFiles(imgs); return; }
+      // Si pegan un enlace de imagen y no están escribiendo en un campo de texto
+      const tag = (document.activeElement && document.activeElement.tagName) || "";
+      if (tag !== "INPUT" && tag !== "TEXTAREA") {
+        const txt = (e.clipboardData && e.clipboardData.getData("text")) || "";
+        if (/^https?:\/\/\S+/i.test(txt.trim())) { e.preventDefault(); addImageFromUrl(txt.trim()); }
+      }
+    });
+
+    // URL de imagen (Enter): la re-alojamos en Supabase para que no caduque
     $("fImgUrl").addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
         const url = e.target.value.trim();
-        if (url) { pendingImages.push(url); renderThumbs(); e.target.value = ""; }
+        if (url) { addImageFromUrl(url); e.target.value = ""; }
       }
     });
+  }
+
+  // Descarga una imagen por URL y la re-sube a tu Supabase (para que sea permanente).
+  // Si no se puede (CORS o enlace caducado), guarda la URL tal cual como respaldo.
+  async function addImageFromUrl(url) {
+    setUploading(true, 1);
+    try {
+      const res = await fetch(url, { mode: "cors" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const blob = await res.blob();
+      if (!blob.type.startsWith("image/")) throw new Error("No es una imagen");
+      const ext = (blob.type.split("/")[1] || "jpg").split("+")[0];
+      const file = new File([blob], "img-" + Date.now() + "." + ext, { type: blob.type });
+      const ref = await Store.uploadImage(file);
+      pendingImages.push(ref);
+      toast("Imagen añadida ✓");
+    } catch (err) {
+      console.warn("No se pudo re-alojar, se guarda el enlace:", err);
+      pendingImages.push(url);
+      toast("Imagen añadida por enlace");
+    }
+    setUploading(false);
+    renderThumbs();
+  }
+
+  function imgSrcFromHtml(html) {
+    if (!html) return "";
+    const m = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+    return m ? m[1] : "";
   }
 
   async function handleFiles(files) {
@@ -173,10 +231,17 @@
     });
   }
 
+  let uploadCount = 0;
   function setUploading(on, n) {
     const dz = $("dropzone");
-    if (on) { dz.classList.add("uploading"); dz.dataset.label = dz.innerHTML; dz.innerHTML = "⏳ Subiendo " + (n || "") + " imagen(es)…"; }
-    else if (dz.dataset.label) { dz.classList.remove("uploading"); dz.innerHTML = dz.dataset.label; }
+    if (on) {
+      if (uploadCount === 0) { dz.dataset.label = dz.innerHTML; dz.classList.add("uploading"); }
+      uploadCount++;
+      dz.innerHTML = "⏳ Subiendo imagen(es)…";
+    } else {
+      uploadCount = Math.max(0, uploadCount - 1);
+      if (uploadCount === 0 && dz.dataset.label) { dz.classList.remove("uploading"); dz.innerHTML = dz.dataset.label; }
+    }
   }
   function setSaving(on) {
     $("saveBtn").disabled = on;
