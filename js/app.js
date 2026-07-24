@@ -16,7 +16,6 @@
   // --- Marca / textos ---
   $("brandName").innerHTML = brandHTML(cfg.brand);
   $("footBrand").textContent = cfg.brand;
-  $("heroTitle").textContent = cfg.tagline || "Encuentra tus productos";
   $("year").textContent = new Date().getFullYear();
   document.title = cfg.brand + " — Catálogo de productos";
 
@@ -120,7 +119,8 @@
       ? "Todos los productos "
       : state.category + " ";
     $("listCount").textContent = "(" + list.length + ")";
-    $("hero").style.display = state.favsOnly || state.search ? "none" : "";
+    const heroEl = $("hero");
+    if (heroEl) heroEl.style.display = state.favsOnly || state.search ? "none" : "";
 
     grid.innerHTML = "";
     if (!list.length) {
