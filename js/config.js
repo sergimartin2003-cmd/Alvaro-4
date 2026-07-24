@@ -42,7 +42,8 @@ window.SITE_CONFIG = {
 /* Categorías sugeridas en el panel para clasificar productos.
    También puedes escribir una nueva al vuelo en el formulario. */
 window.SUGGESTED_CATEGORIES = [
-  "Ropa",
+  "Camisetas",
+  "Pantalones",
   "Zapas",
   "Accesorios",
   "Relojes",
