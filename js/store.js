@@ -88,13 +88,25 @@
       return normalize(data);
     },
     async updateProduct(id, patch) {
-      const { data, error } = await sb.from("products").update(toRow(patch)).eq("id", id).select().single();
+      const { data, error } = await sb.from("products").update(toRow(patch)).eq("id", id).select();
       if (error) throw error;
-      return normalize(data);
+      if (!data || !data.length) {
+        throw new Error(
+          "Supabase no dejó editar el producto (permiso denegado). " +
+          "Ejecuta de nuevo el archivo supabase/schema.sql en el SQL Editor: crea el permiso de edición (UPDATE)."
+        );
+      }
+      return normalize(data[0]);
     },
     async deleteProduct(id) {
-      const { error } = await sb.from("products").delete().eq("id", id);
+      const { data, error } = await sb.from("products").delete().eq("id", id).select();
       if (error) throw error;
+      if (!data || !data.length) {
+        throw new Error(
+          "Supabase no dejó eliminar el producto (permiso denegado). " +
+          "Ejecuta de nuevo el archivo supabase/schema.sql en el SQL Editor."
+        );
+      }
     },
     async uploadImage(file) {
       const ext = (file.name && file.name.split(".").pop()) || "jpg";
