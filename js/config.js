@@ -13,8 +13,11 @@
       Al poner tus datos reales, pasa a guardar TODO en Supabase.
    ============================================================ */
 window.APP_CONFIG = {
-  SUPABASE_URL: "https://TU-PROYECTO.supabase.co",
-  SUPABASE_ANON_KEY: "TU-ANON-PUBLIC-KEY",
+  SUPABASE_URL: "https://dazwhishyhlxgndevizr.supabase.co",
+  // Clave PÚBLICA (anon). Es segura en el navegador: la seguridad real la dan
+  // las políticas RLS. NUNCA pongas aquí la clave secreta / service_role.
+  SUPABASE_ANON_KEY:
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhendoaXNoeWhseGduZGV2aXpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4NDU2OTgsImV4cCI6MjEwMDQyMTY5OH0.gTWFFbs7kmFJ4SdQ-o7oQUdk4n0G9GuwrndCHQ7o-xc",
 
   // Nombre del bucket de Storage donde se guardan las fotos.
   // (Lo crea el script supabase/schema.sql)
