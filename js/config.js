@@ -28,7 +28,7 @@ window.APP_CONFIG = {
    AJUSTES VISUALES DE LA MARCA
    ============================================================ */
 window.SITE_CONFIG = {
-  brand: "Hipopick",
+  brand: "gtshop",
   tagline: "Encuentra tus productos con fotos reales",
   currency: "€",
   buyLabel: "Comprar ahora",
