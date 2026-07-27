@@ -255,6 +255,18 @@
     badge.style.display = n ? "grid" : "none";
   }
 
+  // Modo noche
+  const themeBtn = $("themeToggle");
+  function syncThemeIcon() {
+    const dark = Store.getTheme() === "dark";
+    themeBtn.textContent = dark ? "☀️" : "🌙";
+    themeBtn.title = dark ? "Modo día" : "Modo noche";
+  }
+  if (themeBtn) {
+    syncThemeIcon();
+    themeBtn.onclick = () => { Store.toggleTheme(); syncThemeIcon(); };
+  }
+
   /* ---------- Helpers ---------- */
   function esc(s) {
     return (s || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

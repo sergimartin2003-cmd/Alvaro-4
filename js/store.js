@@ -288,6 +288,20 @@
       const cur = p.currency || SITE.currency;
       const val = Number.isInteger(p.price) ? p.price : Number(p.price).toFixed(2);
       return val + " " + cur;
+    },
+
+    // ---------- Tema (claro / noche) ----------
+    getTheme() {
+      return document.documentElement.getAttribute("data-theme") || "light";
+    },
+    setTheme(t) {
+      const theme = t === "dark" ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", theme);
+      try { localStorage.setItem("hp_theme", theme); } catch (e) {}
+      return theme;
+    },
+    toggleTheme() {
+      return this.setTheme(this.getTheme() === "dark" ? "light" : "dark");
     }
   };
 
@@ -295,6 +309,12 @@
     const root = document.documentElement;
     if (SITE.accent) root.style.setProperty("--accent", SITE.accent);
     if (SITE.accent2) root.style.setProperty("--accent-2", SITE.accent2);
+    let theme = null;
+    try { theme = localStorage.getItem("hp_theme"); } catch (e) {}
+    if (!theme) {
+      theme = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    root.setAttribute("data-theme", theme);
   }
 
   window.Store = Store;

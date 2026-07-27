@@ -58,6 +58,18 @@
   if ($("gateEmail")) $("gateEmail").addEventListener("keydown", (e) => { if (e.key === "Enter") $("gatePass").focus(); });
   $("lockBtn").onclick = async () => { await Store.auth.signOut(); location.reload(); };
 
+  // Modo noche
+  const themeBtn = $("themeToggle");
+  if (themeBtn) {
+    const syncTheme = () => {
+      const dark = Store.getTheme() === "dark";
+      themeBtn.textContent = dark ? "☀️" : "🌙";
+      themeBtn.title = dark ? "Modo día" : "Modo noche";
+    };
+    syncTheme();
+    themeBtn.onclick = () => { Store.toggleTheme(); syncTheme(); };
+  }
+
   /* -------------------- Datos -------------------- */
   async function refresh() {
     try {

@@ -104,7 +104,7 @@ button { font-family: inherit; cursor: pointer; }
   height: 42px;
   border-radius: 12px;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--card);
   display: grid;
   place-items: center;
   color: var(--text);
@@ -161,7 +161,7 @@ button { font-family: inherit; cursor: pointer; }
   padding: 8px 16px;
   border-radius: 999px;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--card);
   color: var(--muted);
   font-weight: 600;
   font-size: 14px;
@@ -241,7 +241,7 @@ button { font-family: inherit; cursor: pointer; }
   height: 40px;
   border-radius: 12px;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--card);
   padding: 0 12px;
   font-size: 14px;
   color: var(--text);
@@ -357,7 +357,7 @@ button { font-family: inherit; cursor: pointer; }
 }
 .modal-backdrop.open { display: flex; }
 .modal {
-  background: #fff;
+  background: var(--card);
   border-radius: 22px;
   max-width: 860px;
   width: 100%;
@@ -437,7 +437,7 @@ button { font-family: inherit; cursor: pointer; }
 /* ---------- Footer ---------- */
 .site-footer {
   border-top: 1px solid var(--line);
-  background: #fff;
+  background: var(--card);
   padding: 30px 0;
   margin-top: 20px;
   color: var(--muted);
@@ -484,7 +484,7 @@ button { font-family: inherit; cursor: pointer; }
 @media (min-width: 860px) { .admin-cols { grid-template-columns: 380px 1fr; align-items: start; } }
 
 .panel {
-  background: #fff;
+  background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
@@ -505,7 +505,7 @@ button { font-family: inherit; cursor: pointer; }
   font-size: 14px;
   font-family: inherit;
   color: var(--text);
-  background: #fff;
+  background: var(--card);
   outline: 0;
 }
 .field input:focus,
@@ -569,7 +569,7 @@ button { font-family: inherit; cursor: pointer; }
   border: 1px solid var(--line);
   border-radius: 14px;
   margin-bottom: 10px;
-  background: #fff;
+  background: var(--card);
 }
 .admin-item img { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; flex: none; }
 .admin-item .meta { flex: 1; min-width: 0; }
@@ -581,7 +581,7 @@ button { font-family: inherit; cursor: pointer; }
   height: 36px;
   border-radius: 10px;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--card);
   display: grid;
   place-items: center;
   color: var(--muted);
@@ -604,3 +604,34 @@ button { font-family: inherit; cursor: pointer; }
   font-size: 13px;
   margin-bottom: 16px;
 }
+
+/* ============================================================
+   MODO NOCHE
+   ============================================================ */
+:root[data-theme="dark"] {
+  --bg: #14161c;
+  --card: #1d2029;
+  --text: #e8eaf2;
+  --muted: #9aa0b5;
+  --line: #2c303c;
+  --shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 16px 44px rgba(0, 0, 0, 0.6);
+}
+:root[data-theme="dark"] .site-header { background: rgba(20, 22, 28, 0.85); }
+:root[data-theme="dark"] .card-media { background: #23262f; }
+:root[data-theme="dark"] .modal-gallery { background: #23262f; }
+:root[data-theme="dark"] .skeleton,
+:root[data-theme="dark"] .sk-line {
+  background: linear-gradient(90deg, #20232c 25%, #2a2e3a 37%, #20232c 63%);
+  background-size: 400% 100%;
+}
+:root[data-theme="dark"] .field label { color: #c7ccdb; }
+:root[data-theme="dark"] .modal-desc { color: #c2c7d6; }
+:root[data-theme="dark"] .modal-sizes-label { color: #c7ccdb; }
+:root[data-theme="dark"] .field input:focus,
+:root[data-theme="dark"] .field textarea:focus,
+:root[data-theme="dark"] .field select:focus {
+  box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.25);
+}
+/* El aviso de modo demo y las notas siguen en tono claro para que resalten */
+
